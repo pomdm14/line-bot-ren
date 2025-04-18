@@ -3,6 +3,7 @@ const line = require('@line/bot-sdk');
 const axios = require('axios');
 
 const app = express();
+app.use(express.json()); // สำคัญมากในการรับ JSON body จาก LINE
 
 // LINE config
 const config = {
@@ -30,6 +31,8 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
             headers: {
               'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
               'Content-Type': 'application/json',
+              'OpenAI-Project': process.env.OPENAI_PROJECT_ID,
+              'OpenAI-Organization': process.env.OPENAI_ORG_ID
             },
           }
         );
@@ -40,8 +43,9 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
           type: 'text',
           text: replyText,
         });
+
       } catch (error) {
-        console.error('GPT error:', error.message);
+        console.error('❌ GPT error:', error.response?.data || error.message);
 
         return client.replyMessage(event.replyToken, {
           type: 'text',
@@ -54,8 +58,8 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   res.json(results);
 });
 
-// start server
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`LINE bot is running on port ${PORT}`);
+  console.log(`✅ LINE bot is running on port ${PORT}`);
 });
