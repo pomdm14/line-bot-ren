@@ -1,41 +1,28 @@
-require('dotenv').config();
-const express = require('express');
-const line = require('@line/bot-sdk');
+const axios = require('axios');
 
-const app = express();
-const port = process.env.PORT || 3000;
+// แก้ใน handler หลักของคุณ
+if (event.type === 'message' && event.message.type === 'text') {
+  const userMessage = event.message.text;
 
-const config = {
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.CHANNEL_SECRET
-};
+  // ส่งไปยัง OpenAI
+  const gptResponse = await axios.post(
+    'https://api.openai.com/v1/chat/completions',
+    {
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: userMessage }],
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 
-const client = new line.Client(config);
-
-app.post('/webhook', line.middleware(config), (req, res) => {
-  Promise.all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error(err);
-      res.status(500).end();
-    });
-});
-
-function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') {
-    return Promise.resolve(null);
-  }
+  const replyText = gptResponse.data.choices[0].message.content;
 
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `คุณพิมพ์ว่า: ${event.message.text}`
+    text: replyText,
   });
 }
-
-app.get('/', (req, res) => {
-  res.send('LINE Bot is running!');
-});
-
-app.listen(port, () => {
-  console.log(`Server is running at port ${port}`);
-});
