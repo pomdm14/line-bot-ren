@@ -1,7 +1,7 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
 const axios = require('axios');
-const bodyParser = require('body-parser'); // ✅ ต้องใช้ raw parser
+const bodyParser = require('body-parser');
 
 const app = express();
 
@@ -13,7 +13,7 @@ const config = {
 
 const client = new line.Client(config);
 
-// ✅ ต้องใช้ body-parser แบบ raw ก่อน middleware LINE
+// LINE ต้องใช้ raw body เพื่อ verify signature
 app.post(
   '/webhook',
   bodyParser.raw({ type: '*/*' }),
@@ -29,8 +29,18 @@ app.post(
           const gptResponse = await axios.post(
             'https://api.openai.com/v1/chat/completions',
             {
-              model: 'gpt-3.5-turbo',
-              messages: [{ role: 'user', content: userMessage }],
+              model: 'gpt-3.5-turbo-0125',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'คุณเป็นผู้ช่วยที่ให้ข้อมูลในเรื่องทั่วไป เช่น อาหาร ออกกำลังกาย การใช้ชีวิต พูดไทยสุภาพ และตอบให้เข้าใจง่าย',
+                },
+                {
+                  role: 'user',
+                  content: userMessage,
+                },
+              ],
+              max_tokens: 200,
             },
             {
               headers: {
@@ -42,7 +52,10 @@ app.post(
             }
           );
 
-          const replyText = gptResponse.data.choices[0].message.content.trim();
+          const replyRaw = gptResponse.data.choices[0].message.content;
+          const replyText = typeof replyRaw === 'string'
+            ? replyRaw.trim()
+            : 'ขออภัย ระบบขัดข้อง ตอบกลับผิดพลาด';
 
           return client.replyMessage(event.replyToken, {
             type: 'text',
